@@ -63,9 +63,12 @@ function forEachFile(options, cb)
 }
 
 APP.version(PCG.version);
-APP.option('-d, --dir <dir>'   , 'The directory to walk and search for XML bundles');
-APP.option('-s, --server <url>', 'The destination fhir server url');
-APP.option('-p, --proxy <url>' , 'HTTP proxy url');
+APP.option('-d, --dir <dir>'           , 'The directory to walk and search for XML bundles');
+APP.option('-s, --server <url>'        , 'The destination fhir server url');
+APP.option('-p, --proxy <url>'         , 'HTTP proxy url');
+APP.option('-u, --user <username>'     , 'Basic auth username (unless -a is used)');
+APP.option('-P, --password <password>' , 'Basic auth password (unless -a is used)');
+APP.option('-a, --auth <auth>'         , 'Authorization header');
 
 // RUN =========================================================================
 APP.parse(process.argv);
@@ -93,7 +96,7 @@ forEachFile({
         return readFile(path)
         .then(xml => {
             console.log(`UPLOADING bundle ${++idx} - ${Path.basename(path)}`);
-            request({
+            let options = {
                 method: "POST",
                 url   : APP.server,
                 body  : xml,
@@ -101,7 +104,20 @@ forEachFile({
                     "Content-Type": "application/xml+fhir"
                 },
                 proxy: APP.proxy
-            }, (error, response, body) => {
+            };
+
+            if (APP.auth) {
+                options.headers.Authorization = APP.auth;
+            }
+            else if (APP.user && APP.password) {
+                options.auth = {
+                    user: APP.user,
+                    pass: APP.password,
+                    sendImmediately: true
+                };
+            }
+
+            request(options, (error, response, body) => {
                 if (error) {
                     console.error(response);
                     throw error;
